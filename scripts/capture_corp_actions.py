@@ -26,7 +26,7 @@ def main():
         s.get(u, timeout=20)  # cookie warm-up
 
     today = dt.date.today()
-    cur = today - dt.timedelta(days=int(5.2 * 365))
+    cur = today - dt.timedelta(days=int(11.3 * 365))
     end = today + dt.timedelta(days=60)
     seen, rows = set(), []
     while cur < end:
