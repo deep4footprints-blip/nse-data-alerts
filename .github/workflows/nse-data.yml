@@ -1,0 +1,45 @@
+name: nse-data
+
+on:
+  schedule:
+    - cron: "30 14 * * 1-5"   # 20:00 IST, after bhavcopy is published
+  workflow_dispatch:
+    inputs:
+      backfill_years:
+        description: "Years of history to backfill (0.03 = quick access test)"
+        default: "5"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: nse-data
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 330
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      - name: Fetch bhavcopy
+        run: python scripts/fetch_bhavcopy.py --years "${{ inputs.backfill_years || '5' }}" --max-minutes 300
+
+      - name: QC
+        run: python scripts/qc.py
+
+      - name: Commit data
+        run: |
+          git config user.name "nse-data-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data
+          git diff --staged --quiet || git commit -m "data: update $(date -u +%F)"
+          git push
