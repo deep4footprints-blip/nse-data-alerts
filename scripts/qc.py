@@ -13,9 +13,19 @@ if not list(daily.glob("*.parquet")):
 con = duckdb.connect()
 con.execute(f"create view px as select * from read_parquet('{daily.as_posix()}/*.parquet')")
 
-print(con.sql("""select count(distinct date) days, min(date) first_day, max(date) last_day,
-                 count(*) rows, count(distinct symbol) symbols from px""").df().to_string(index=False))
-print(con.sql("select date, count(*) n from px group by 1 order by 1 desc limit 5").df().to_string(index=False))
+print(con.sql("""
+    select count(distinct date) as n_days,
+           min(date) as first_day,
+           max(date) as last_day,
+           count(*) as n_rows,
+           count(distinct symbol) as n_symbols
+    from px
+""").df().to_string(index=False))
+
+print(con.sql("""
+    select date, count(*) as n
+    from px group by date order by date desc limit 5
+""").df().to_string(index=False))
 
 snaps = sorted((ROOT / "data" / "universe").glob("nifty500_*.csv"))
 if snaps:
@@ -32,7 +42,9 @@ ca = con.sql("""
       from px)
     select symbol, date, c1 as prior_close, prev_close as nse_prev_close,
            round(prev_close / c1, 4) as ratio
-    from x where c1 > 0 and abs(prev_close / c1 - 1) > 0.02 order by date
+    from x
+    where c1 > 0 and abs(prev_close / c1 - 1) > 0.02
+    order by date
 """).df()
 out = ROOT / "data" / "ca_candidates.csv"
 ca.to_csv(out, index=False)
