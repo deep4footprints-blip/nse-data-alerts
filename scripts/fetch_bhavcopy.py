@@ -54,8 +54,12 @@ def get(session, url, tries=4):
 
 
 def parse_day(text, d):
+    """Parse one bhavcopy CSV. Raises on malformed input; returns None if stale/partial."""
     df = pd.read_csv(io.StringIO(text), skipinitialspace=True)
     df.columns = [c.strip() for c in df.columns]
+    missing = [c for c in RENAME if c not in df.columns]
+    if missing:
+        raise ValueError(f"missing columns {missing}; got {list(df.columns)[:8]}")
     for c in ("SYMBOL", "SERIES"):
         df[c] = df[c].astype(str).str.strip()
     df = df[df["SERIES"].isin(KEEP_SERIES)].copy()
@@ -111,6 +115,7 @@ def main():
         pass
 
     fails = saved = 0
+    bad_days = []
     try:
         snapshot_universe(s, today)
         for d in todo:
@@ -127,12 +132,26 @@ def main():
                     print("5 consecutive failures: NSE is probably blocking this runner's IP.")
                     sys.exit(1)
                 continue
-            df = parse_day(r.text, d) if r is not None else None
+
+            df = None
+            if r is not None:
+                try:
+                    df = parse_day(r.text, d)
+                except Exception as e:  # malformed file: log, skip, retry on a later run
+                    bad_days.append(d.isoformat())
+                    print(f"UNPARSEABLE {d}: {type(e).__name__}: {str(e)[:150]} | head={r.text[:150]!r}")
+                    if saved == 0 and len(bad_days) >= 8:
+                        print("First 8 days all unparseable and none saved: aborting.")
+                        sys.exit(1)
+                    time.sleep(a.delay)
+                    continue
+
             if df is None:
-                if d < today - dt.timedelta(days=4):
-                    holidays.add(d.isoformat())  # old and absent => market holiday
+                if r is None and d < today - dt.timedelta(days=4):
+                    holidays.add(d.isoformat())  # old and 404 => market holiday
                 time.sleep(a.delay)
                 continue
+
             df.to_parquet(DAILY / f"{d.isoformat()}.parquet", index=False)
             saved += 1
             if saved % 50 == 0:
@@ -141,7 +160,10 @@ def main():
     finally:
         HOLIDAYS.parent.mkdir(parents=True, exist_ok=True)
         HOLIDAYS.write_text("\n".join(sorted(holidays)) + "\n")
-    print(f"Done: saved {saved} new days in {(time.time() - t0) / 60:.1f} min")
+    print(f"Done: saved {saved} new days, {len(bad_days)} unparseable, "
+          f"in {(time.time() - t0) / 60:.1f} min")
+    if bad_days:
+        print("Unparseable days:", ", ".join(bad_days[:40]), "..." if len(bad_days) > 40 else "")
 
 
 if __name__ == "__main__":
