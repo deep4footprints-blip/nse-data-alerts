@@ -34,12 +34,15 @@ jobs:
         run: python scripts/fetch_bhavcopy.py --years "${{ inputs.backfill_years || '5' }}" --max-minutes 300
 
       - name: QC
+        if: always()
         run: python scripts/qc.py
 
       - name: Commit data
+        if: always()
         run: |
           git config user.name "nse-data-bot"
           git config user.email "actions@users.noreply.github.com"
           git add data
           git diff --staged --quiet || git commit -m "data: update $(date -u +%F)"
+          git pull --rebase
           git push
