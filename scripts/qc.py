@@ -30,10 +30,12 @@ print(con.sql("""
 snaps = sorted((ROOT / "data" / "universe").glob("nifty500_*.csv"))
 if snaps:
     uni = set(pd.read_csv(snaps[-1])["Symbol"].astype(str).str.strip())
-    last = con.sql("select max(date) from px").fetchone()[0]
+    last = con.sql("select max(date) as d from px").df()["d"].iloc[0]
     have = set(con.sql(f"select symbol from px where date = '{last}'").df()["symbol"])
     missing = sorted(uni - have)
     print(f"Nifty 500 coverage on {last}: {len(uni) - len(missing)}/{len(uni)}; missing: {missing[:20]}")
+else:
+    print("WARN: no Nifty 500 universe snapshot found")
 
 ca = con.sql("""
     with x as (
