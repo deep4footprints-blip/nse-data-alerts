@@ -19,7 +19,6 @@ import pandas as pd
 ROOT = Path(__file__).resolve().parents[1]
 RAW = ROOT / "data" / "corp_actions_raw.json"
 OUT = ROOT / "data" / "adj_factors.csv"
-START, END = pd.Timestamp("2021-11-02"), pd.Timestamp.today().normalize()
 
 
 def num(x):
@@ -59,6 +58,7 @@ def main():
     px["date"] = pd.to_datetime(px["date"])
     px = px.sort_values(["symbol", "date"])
     px["r"] = px["close"] / px.groupby("symbol")["close"].shift()
+    START, END = px["date"].min() + pd.Timedelta(days=1), px["date"].max()
 
     def actual(sym, ex):
         sub = px[(px.symbol == sym) & (px.date >= ex) & (px.date <= ex + pd.Timedelta(days=5))].head(1)
