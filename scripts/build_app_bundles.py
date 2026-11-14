@@ -135,8 +135,17 @@ def main() -> None:
         for ym, c in zip(g["ym"], g["close"]):
             arr[int(ym) - first_m] = round(float(c), 2)
         ref[s] = arr
+    # the split and bonus events the repo itself adjusted for: the app only trusts a price-level difference that one of these explains
+    ev: dict[str, list] = {}
+    adjf = ROOT / "data" / "adj_factors.csv"
+    if adjf.exists():
+        a = pd.read_csv(adjf)
+        a = a[a["kind"].isin(["bonus", "split", "bonus+split", "consolidation"]) & a["symbol"].isin(ref.keys())]
+        for r in a.itertuples():
+            d = int(pd.Timestamp(r.ex_date).to_datetime64().astype("datetime64[D]").astype("int64"))
+            ev.setdefault(r.symbol, []).append([d, round(float(r.factor), 6)])
     refmeta = {"built": str(last_session.date()), "m0": f"{first_m // 12}-{first_m % 12 + 1:02d}", "months": nm, "count": len(ref)}
-    (OUT / "audit_ref.json").write_text(json.dumps({"meta": refmeta, "close": ref}, separators=(",", ":")))
+    (OUT / "audit_ref.json").write_text(json.dumps({"meta": refmeta, "close": ref, "events": ev}, separators=(",", ":")))
 
     k = {n: sum(1 for x in dead if x["kind"] == n) for n in ("delisted", "merged", "renamed")}
     print(f"dead stocks {len(dead)} {k} suspect {sum(1 for x in dead if x['suspect'])}")
