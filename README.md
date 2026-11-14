@@ -35,3 +35,6 @@ Common exits: two weekly closes below 10-week SMA with 30-week SMA flat/down; em
 - Existing price adjustment caveats remain: dividends/rights not adjusted and demerger estimates may be approximate.
 - Archive begins in 2019; the 52-week warm-up means the actual test starts around 2020.
 - Treat output as exploratory until independently validated.
+
+## App bundles
+`python scripts/build_app_bundles.py` writes `data/app/dead.json` (adjusted bars of stocks that stopped trading, with renames linked to the new ticker), `data/app/audit_ref.json` (month-end adjusted closes of live stocks) and `data/app/meta.json`. The daily workflow runs it after the bhavcopy update; the Market Pulse app downloads them from raw.githubusercontent.com.

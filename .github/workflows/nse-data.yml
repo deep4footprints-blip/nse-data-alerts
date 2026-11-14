@@ -37,6 +37,10 @@ jobs:
         if: always()
         run: python scripts/qc.py
 
+      - name: Build app bundles (delisted stocks, price audit reference)
+        if: always()
+        run: python scripts/build_app_bundles.py
+
       - name: Commit data
         if: always()
         run: |
